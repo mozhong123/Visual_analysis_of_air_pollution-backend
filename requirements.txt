@@ -10,3 +10,4 @@ redis==4.6.0
 captcha==0.5.0
 pandas~=1.5.2
 minio==7.1.16
+pyspark == 3.5.0

@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base
 from const import SQLALCHEMY_DATABASE_URL
 import redis
 from minio import Minio, S3Error
-
+'''
 minio_client = Minio(
     "119.3.179.194:9000",  # 更新为MinIO服务器的地址和端口
     access_key="minioadmin",  # 你的MinIO访问密钥
@@ -24,6 +24,7 @@ pool3 = redis.ConnectionPool(host='127.0.0.1', port=6379, db=3, encoding='UTF-8'
 session_db = redis.Redis(connection_pool=pool1)  # 根据token缓存有效session
 user_information_db = redis.Redis(connection_pool=pool2)  # 根据user_id缓存用户基本信息
 url_db = redis.Redis(connection_pool=pool3)  # 根据user_file_id缓存下载链接
+'''
 Base = declarative_base()
 
 

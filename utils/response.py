@@ -29,7 +29,7 @@ def makePageResult(pg: page, tn: int, data: List):  # 处理分页数据
     ).model_dump()
 
 
-def user_standard_response(func: Callable):
+def data_standard_response(func: Callable):
     @functools.wraps(func)
     async def decorator(*args, **kwargs):
         result = await func(*args, **kwargs)

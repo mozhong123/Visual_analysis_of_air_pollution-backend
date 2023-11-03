@@ -17,15 +17,10 @@ def get_address(lat, lng, ak):
     address = data['result']['formatted_address']  # 解析地址
     return city, address
 
-def process_csv(file_path_input,file_path_output):
-    file = pd.read_csv(file_path_input)
-    file['city'] = city_list
-    file['address'] = address_list
-    file.to_csv(file_path_output)
 
 def process_csv_ult(file_path):
     data = []
-    with open(file_path, 'r',encoding='utf-8') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         lines = file.readlines()
         lines.pop(0)
         for line in lines:
@@ -39,22 +34,26 @@ def process_csv_ult(file_path):
             if cleaned_row:
                 data.append(cleaned_row)
     return {'data': data}
+
+
 def write_to_json(data, file_path):
-    #经纬度提到前面
-    processed_data = {key: [values[12:17] + values[1:12]  for values in rows] for key, rows in data.items()}
-    #字符串转float，去掉了数据上的双引号
-    json_str = json.dumps(processed_data,ensure_ascii=False)
+    # 经纬度提到前面
+    processed_data = {key: [values[12:17] + values[1:12] for values in rows] for key, rows in data.items()}
+    # 字符串转float，去掉了数据上的双引号
+    json_str = json.dumps(processed_data, ensure_ascii=False)
     # 使用正则表达式去除数字的双引号
     # 将字符串类型的数字转换为浮点数类型
     data_obj = json.loads(json_str)
     # 将字符串类型的数字转换为浮点数类型
-    data_obj["data"] = [[float(num) if isinstance(num, str) and (num.replace('.', '', 1).isdigit() or (num.startswith('-') and num[1:].replace('.', '', 1).isdigit())) else num for num in sublist] for sublist in data_obj["data"]]
-    json_data = json.dumps(data_obj,ensure_ascii=False)
-    with open(file_path, 'w',encoding='utf-8') as file:
+    data_obj["data"] = [[float(num) if isinstance(num, str) and (num.replace('.', '', 1).isdigit() or (
+                num.startswith('-') and num[1:].replace('.', '', 1).isdigit())) else num for num in sublist] for sublist
+                        in data_obj["data"]]
+    json_data = json.dumps(data_obj, ensure_ascii=False)
+    with open(file_path, 'w', encoding='utf-8') as file:
         file.write(json_data)
 
-def main():
 
+def make_json():
     # 替换成自己的ak
     ak = ['1',
           '2',
@@ -65,10 +64,8 @@ def main():
           '7',
           '8',
           '9']
-
     # 读取文档
     df = pd.read_csv("D:/A学习资料A/大三上/大数据分析实践/2014/CN-Reanalysis2013010100.csv", encoding="utf-8")
-
     # 将文档中每一行经纬度，请求接口，返回并打印数据
     city_list = []
     address_list = []
@@ -93,15 +90,11 @@ def main():
     # 将城市地址添加到 DataFrame 中
     df['city'] = city_list
     df['address'] = address_list
-
     # 将两列写入文档中
     df.to_csv("D:/A学习资料A/大三上/大数据分析实践/2014_json/cc_2013010100.csv", index=False)
-
-
-    city_list = [' ']*42249
-    address_list = [' ']*42249
-
-    for i in range(0,42249):
+    city_list = [' '] * 42249
+    address_list = [' '] * 42249
+    for i in range(0, 42249):
         city_list[i] = str(df['city'][i])
         address_list[i] = str(df['address'][i])
         if city_list[i] == 'nan':
@@ -117,9 +110,10 @@ def main():
     for csv_file in csv_files:
         file_path_input = os.path.join(csv_folder, csv_file)
         file_path_output = os.path.join(output_folder, csv_file)
-        process_csv(file_path_input,file_path_output)
-
-
+        file = pd.read_csv(file_path_input)
+        file['city'] = city_list
+        file['address'] = address_list
+        file.to_csv(file_path_output)
     # 待处理的CSV文件夹路径
     csv_folder = "D:/A学习资料A/大三上/大数据分析实践/2013_t1/"
     # 待输出的JSON文件夹路径
@@ -132,6 +126,3 @@ def main():
         output_file_path = os.path.join(output_folder, csv_file.replace('.csv', '.json'))
         result = process_csv_ult(file_path)
         write_to_json(result, output_file_path)
-
-if __name__ == "__main__":
-    main()
