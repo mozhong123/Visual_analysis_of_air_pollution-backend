@@ -126,3 +126,18 @@ def make_json():
         output_file_path = os.path.join(output_folder, csv_file.replace('.csv', '.json'))
         result = process_csv_ult(file_path)
         write_to_json(result, output_file_path)
+
+
+def evaluate_air_quality(aqi):
+    if 0 <= aqi <= 50:
+        return "优秀"
+    elif 51 <= aqi <= 100:
+        return "良好"
+    elif 101 <= aqi <= 150:
+        return "轻度污染"
+    elif 151 <= aqi <= 200:
+        return "中度污染"
+    elif 201 <= aqi <= 300:
+        return "重度污染"
+    else:
+        return "严重污染"

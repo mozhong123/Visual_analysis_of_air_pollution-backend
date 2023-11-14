@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from fastapi import Request, Header, Depends
 from model.user import encrypted_password
 from type.page import page
-from utils.response import user_standard_response, page_response, makePageResult
+from utils.response import  page_response, makePageResult
 
 users_router = APIRouter()
 

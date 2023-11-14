@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime, date
-
+from type.functions import evaluate_air_quality
 from fastapi import APIRouter
 from utils.response import data_standard_response
 from type.data import pollution_interface, information_interface, city_interface, time_interface
@@ -78,15 +78,21 @@ async def add_datas():
                                                 AQI=data['data'][i][2],
                                                 PM2_5=data['data'][i][5], PM10=data['data'][i][6],
                                                 SO2=data['data'][i][7], NO2=data['data'][i][8],
-                                                CO=data['data'][i][9], O3=data['data'][i][10],main_pollution = data['data'][i][3])
+                                                CO=data['data'][i][9], O3=data['data'][i][10],
+                                                main_pollution=data['data'][i][3])
                 pollution_id = pollution_model.add_data(pollution)
                 information = information_interface(U=data['data'][i][11], V=data['data'][i][12],
                                                     TEMP=data['data'][i][13],
                                                     RH=data['data'][i][14], PSFC=data['data'][i][15],
                                                     pollution_id=pollution_id)
                 information_model.add_data(information)
+    return {'data': True, 'message': '数据添加成功', 'code': 0}
 
 
-# @datas_router.get("/add_datas")
-# @data_standard_response
-# async def add_datas():
+@datas_router.get("/date_pollution")
+@data_standard_response
+async def get_date_pollution(year: int, month: int, day: int, city: str):
+    dates = date(year, month, day)
+    pollutions = pollution_model.get_pollution_by_city_date(city, dates)._asdict()
+    pollutions['AQIState'] = evaluate_air_quality(pollutions['AQI'])
+    return {'data': pollutions, 'message': '结果如下', 'code': 0}

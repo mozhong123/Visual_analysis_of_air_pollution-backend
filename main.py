@@ -10,6 +10,7 @@ from utils.response import standard_response
 from utils.times import getMsTime
 
 app = FastAPI()
+
 app.include_router(users.users_router, prefix="/users")
 app.include_router(datas.datas_router, prefix="/datas")
 
@@ -71,17 +72,6 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有 HTTP 头
 )
 
-
-@app.get("/")
-@standard_response
-async def root():
-    return {"message": "Hello World"}
-
-
-@app.get("/hello/{name}")
-@standard_response
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
 
 
 def main():

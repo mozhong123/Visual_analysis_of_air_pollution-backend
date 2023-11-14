@@ -14,6 +14,17 @@ class PollutionModel(dbSession):
             session.commit()
             return obj_add.id
 
+    def get_pollution_by_city_date(self, city, date):
+        with self.get_db() as session:
+            pollutions = session.query(Pollution.AQI, Pollution.PM2_5, Pollution.PM10, Pollution.SO2, Pollution.NO2,
+                                       Pollution.CO, Pollution.O3
+                                       ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                                 Time.id == Pollution.time_id).filter(
+                Time.Dates == date, City.name == city
+                ).first()
+            session.commit()
+            return pollutions
+
 
 class InformationModel(dbSession):
     def add_data(self, obj: information_interface):
