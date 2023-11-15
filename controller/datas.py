@@ -89,10 +89,15 @@ async def add_datas():
     return {'data': True, 'message': '数据添加成功', 'code': 0}
 
 
-@datas_router.get("/date_pollution")
+@datas_router.get("/pollution")
 @data_standard_response
-async def get_date_pollution(year: int, month: int, day: int, city: str):
-    dates = date(year, month, day)
-    pollutions = pollution_model.get_pollution_by_city_date(city, dates)._asdict()
+async def get_pollution(city: str, year: int = None, month: int = None, day: int = None, hour: int = None):
+    if hour is None:
+        time = date(year, month, day)
+        type = 0
+    else:
+        time = datetime(2013, 1, day, hour, 0, 0)
+        type = 1
+    pollutions = pollution_model.get_pollution_by_city_date(city, time ,type)._asdict()
     pollutions['AQIState'] = evaluate_air_quality(pollutions['AQI'])
     return {'data': pollutions, 'message': '结果如下', 'code': 0}
