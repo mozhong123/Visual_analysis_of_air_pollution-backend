@@ -32,6 +32,24 @@ class PollutionModel(dbSession):
             return pollutions
 
 
+    def get_pollution_by_date(self, time, type):
+        with self.get_db() as session:
+            query = session.query(Pollution.AQI, Pollution.PM2_5, Pollution.PM10, Pollution.SO2, Pollution.NO2,
+                                           Pollution.CO, Pollution.O3,City.name, City.lon, City.lat
+                                           ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                                     Time.id == Pollution.time_id)
+            if type == 0:
+                pollutions = query.filter(
+                    Time.Dates == time
+                    ).all()
+            else:
+                pollutions = query.filter(
+                    Time.Datetimes == time
+                ).all()
+            session.commit()
+            return pollutions
+
+
 class InformationModel(dbSession):
     def add_data(self, obj: information_interface):
         obj_dict = jsonable_encoder(obj)

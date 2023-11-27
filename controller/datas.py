@@ -101,3 +101,21 @@ async def get_pollution(city: str, year: int = None, month: int = None, day: int
     pollutions = pollution_model.get_pollution_by_city_date(city, time ,type)._asdict()
     pollutions['AQIState'] = evaluate_air_quality(pollutions['AQI'])
     return {'data': pollutions, 'message': '结果如下', 'code': 0}
+
+
+@datas_router.get("/map")
+@data_standard_response
+async def get_pollution(year: int = None, month: int = None, day: int = None, hour: int = None):
+    if hour is None:
+        time = date(year, month, day)
+        type = 0
+    else:
+        time = datetime(2013, 1, day, hour, 0, 0)
+        type = 1
+    pollutions = pollution_model.get_pollution_by_date(time ,type)
+    res = []
+    for pollution in pollutions:
+        pollution = pollution._asdict()
+        pollution['AQIState'] = evaluate_air_quality(pollution['AQI'])
+        res.append(pollution)
+    return {'data': res, 'message': '结果如下', 'code': 0}
