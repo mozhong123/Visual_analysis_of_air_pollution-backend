@@ -32,6 +32,7 @@ class Pollution(Base):
     time_id = Column(Integer, ForeignKey('time.id'), nullable=False, comment='时间')
     main_pollution = Column(Integer,  nullable=False)
     AQI = Column(Float, nullable=False, comment='AQI')
+    predict_AQI = Column(Float, nullable=True, comment='AQI')
     PM2_5 = Column(Float, nullable=False, comment='PM2.5')
     PM10 = Column(Float, nullable=False, comment='PM10')
     SO2 = Column(Float, nullable=False, comment='SO2')

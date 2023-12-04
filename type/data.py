@@ -14,6 +14,7 @@ class pollution_interface(BaseModel):
     city_id: int
     time_id:int
     AQI: float
+    predict_AQI : float = None
     main_pollution : int
     PM2_5: float
     PM10: float

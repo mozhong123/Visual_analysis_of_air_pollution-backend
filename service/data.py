@@ -1,4 +1,9 @@
+import random
+from datetime import datetime
+
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import func, extract
+
 from model.data import City, Time, Pollution, Information
 from model.db import dbSession
 from type.data import city_interface, time_interface, pollution_interface, information_interface
@@ -17,13 +22,13 @@ class PollutionModel(dbSession):
     def get_pollution_by_city_date(self, city, time, type):
         with self.get_db() as session:
             query = session.query(Pollution.AQI, Pollution.PM2_5, Pollution.PM10, Pollution.SO2, Pollution.NO2,
-                                           Pollution.CO, Pollution.O3
-                                           ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
-                                                                                                     Time.id == Pollution.time_id)
+                                  Pollution.CO, Pollution.O3
+                                  ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                            Time.id == Pollution.time_id)
             if type == 0:
                 pollutions = query.filter(
                     Time.Dates == time, City.name == city
-                    ).first()
+                ).first()
             else:
                 pollutions = query.filter(
                     Time.Datetimes == time, City.name == city
@@ -31,23 +36,42 @@ class PollutionModel(dbSession):
             session.commit()
             return pollutions
 
-
     def get_pollution_by_date(self, time, type):
         with self.get_db() as session:
             query = session.query(Pollution.AQI, Pollution.PM2_5, Pollution.PM10, Pollution.SO2, Pollution.NO2,
-                                           Pollution.CO, Pollution.O3,City.name, City.lon, City.lat
-                                           ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
-                                                                                                     Time.id == Pollution.time_id)
+                                  Pollution.CO, Pollution.O3, City.name, City.lon, City.lat
+                                  ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                            Time.id == Pollution.time_id)
             if type == 0:
                 pollutions = query.filter(
                     Time.Dates == time
-                    ).all()
+                ).all()
             else:
                 pollutions = query.filter(
                     Time.Datetimes == time
                 ).all()
             session.commit()
             return pollutions
+
+    def get_two_aqi_by_year_city(self, year, city):
+        with self.get_db() as session:
+            aqis = session.query(Pollution.AQI, Pollution.predict_AQI
+                                 ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                           Time.id == Pollution.time_id).filter(
+                City.name == city,
+                extract('year', Time.Dates) == year).all()
+            session.commit()
+            return aqis
+
+    def get_predict_aqi_by_month_city(self, month, city):
+        with self.get_db() as session:
+            aqis = session.query(Pollution.predict_AQI
+                                 ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                           Time.id == Pollution.time_id).filter(
+                City.name == city,
+                extract('month', Time.Dates) == month).all()
+            session.commit()
+            return aqis
 
 
 class InformationModel(dbSession):
@@ -59,6 +83,16 @@ class InformationModel(dbSession):
             session.flush()
             session.commit()
             return obj_add.id
+
+    def get_information_by_date(self, dates):
+        with self.get_db() as session:
+            informations = session.query(Information.U, Information.V, Information.TEMP, Information.RH, Information.PSFC,City.lon,City.lat
+                                 ).outerjoin(Pollution, Pollution.id == Information.pollution_id).outerjoin(Time,
+                                                                                                            Time.id == Pollution.time_id).outerjoin(
+                City, City.id == Pollution.city_id).filter(
+                Time.Dates==dates).all()
+            session.commit()
+            return informations
 
 
 class CityModel(dbSession):

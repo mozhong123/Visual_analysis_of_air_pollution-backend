@@ -98,12 +98,12 @@ async def get_pollution(city: str, year: int = None, month: int = None, day: int
     else:
         time = datetime(2013, 1, day, hour, 0, 0)
         type = 1
-    pollutions = pollution_model.get_pollution_by_city_date(city, time ,type)._asdict()
+    pollutions = pollution_model.get_pollution_by_city_date(city, time, type)._asdict()
     pollutions['AQIState'] = evaluate_air_quality(pollutions['AQI'])
     return {'data': pollutions, 'message': '结果如下', 'code': 0}
 
 
-@datas_router.get("/map")
+@datas_router.get("/pollution_map")
 @data_standard_response
 async def get_pollution(year: int = None, month: int = None, day: int = None, hour: int = None):
     if hour is None:
@@ -112,10 +112,40 @@ async def get_pollution(year: int = None, month: int = None, day: int = None, ho
     else:
         time = datetime(2013, 1, day, hour, 0, 0)
         type = 1
-    pollutions = pollution_model.get_pollution_by_date(time ,type)
+    pollutions = pollution_model.get_pollution_by_date(time, type)
     res = []
     for pollution in pollutions:
         pollution = pollution._asdict()
         pollution['AQIState'] = evaluate_air_quality(pollution['AQI'])
         res.append(pollution)
+    return {'data': res, 'message': '结果如下', 'code': 0}
+
+
+@datas_router.get("/reality_predict_AQI")
+@data_standard_response
+async def get_reality_predict(year: int, city: str):
+    pollutions = pollution_model.get_two_aqi_by_year_city(year, city)
+    res = []
+    for pollution in pollutions:
+        res.append(pollution._asdict())
+    return {'data': res, 'message': '结果如下', 'code': 0}
+
+
+@datas_router.get("/predict_AQI")
+@data_standard_response
+async def get_reality_predict(month: int, city: str):
+    pollutions = pollution_model.get_predict_aqi_by_month_city(month, city)
+    res = []
+    for pollution in pollutions:
+        res.append(pollution._asdict())
+    return {'data': res, 'message': '结果如下', 'code': 0}
+
+
+@datas_router.get("/weather_map")
+@data_standard_response
+async def get_weather_map(dates: date):
+    weathers = information_model.get_information_by_date(dates)
+    res = []
+    for pollution in weathers:
+        res.append(pollution._asdict())
     return {'data': res, 'message': '结果如下', 'code': 0}
