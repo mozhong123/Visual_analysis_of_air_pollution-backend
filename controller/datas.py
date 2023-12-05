@@ -149,3 +149,21 @@ async def get_weather_map(dates: date):
     for pollution in weathers:
         res.append(pollution._asdict())
     return {'data': res, 'message': '结果如下', 'code': 0}
+
+
+@datas_router.get("/all_AQI")
+@data_standard_response
+async def get_all_AQI(city: str):
+    pollutions = pollution_model.get_all_aqi_by_city(city)
+    res = {}
+    sum = 0
+    for i in range(2013,2019):
+        right = 366
+        if i == 2016:
+            right = 367
+        temp = []
+        for j in range(1,right):
+            temp.append(pollutions[sum][0])
+            sum += 1
+        res[i] = temp
+    return {'data': res, 'message': '结果如下', 'code': 0}
