@@ -63,9 +63,9 @@ class PollutionModel(dbSession):
             session.commit()
             return aqis
 
-    def get_predict_aqi_by_month_city(self, month, city):
+    def get_aqi_by_month_city(self, month, city):
         with self.get_db() as session:
-            aqis = session.query(Pollution.predict_AQI
+            aqis = session.query(Pollution.AQI
                                  ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
                                                                                            Time.id == Pollution.time_id).filter(
                 City.name == city,

@@ -134,7 +134,7 @@ async def get_reality_predict(year: int, city: str):
 @datas_router.get("/predict_AQI")
 @data_standard_response
 async def get_reality_predict(month: int, city: str):
-    pollutions = pollution_model.get_predict_aqi_by_month_city(month, city)
+    pollutions = pollution_model.get_aqi_by_month_city(month, city)
     res = []
     for pollution in pollutions:
         res.append(pollution._asdict())
