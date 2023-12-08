@@ -143,13 +143,13 @@ async def get_reality_predict(month: int, city: str):
 
 @datas_router.get("/weather_map")
 @data_standard_response
-async def get_weather_map(dates: date):
-    weathers = information_model.get_information_by_date(dates)
+async def get_weather_map(year: int, month: int, day: int):
+    time = date(year, month, day)
+    weathers = information_model.get_information_by_date(time)
     res = []
     for pollution in weathers:
         res.append(pollution._asdict())
     return {'data': res, 'message': '结果如下', 'code': 0}
-
 
 @datas_router.get("/all_AQI")
 @data_standard_response
@@ -157,12 +157,12 @@ async def get_all_AQI(city: str):
     pollutions = pollution_model.get_all_aqi_by_city(city)
     res = {}
     sum = 0
-    for i in range(2013,2019):
+    for i in range(2013, 2019):
         right = 366
         if i == 2016:
             right = 367
         temp = []
-        for j in range(1,right):
+        for j in range(1, right):
             temp.append(pollutions[sum][0])
             sum += 1
         res[i] = temp
