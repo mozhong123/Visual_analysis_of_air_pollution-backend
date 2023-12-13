@@ -1,11 +1,21 @@
+import io
 import os
 import re
+import time
 from datetime import datetime, date
-from type.functions import evaluate_air_quality
+from hashlib import md5, sha256
+
+import pandas as pd
+from fastapi import Request, UploadFile, File
+from selenium import webdriver
+
+from Celery.upload_file import upload_file
+from type.functions import evaluate_air_quality, spider
 from fastapi import APIRouter
 from utils.response import data_standard_response
-from type.data import pollution_interface, information_interface, city_interface, time_interface
-from service.data import PollutionModel, InformationModel, CityModel, TimeModel
+from type.data import pollution_interface, information_interface, city_interface, time_interface, date_interface, \
+    file_interface, event_interface, hash_interface
+from service.data import PollutionModel, InformationModel, CityModel, TimeModel, FileModel, EventModel
 import json
 
 datas_router = APIRouter()
@@ -14,7 +24,8 @@ city_model = CityModel()
 time_model = TimeModel()
 pollution_model = PollutionModel()
 information_model = InformationModel()
-
+file_model = FileModel()
+event_model = EventModel()
 
 @datas_router.post("/add_datas")
 @data_standard_response
@@ -109,9 +120,15 @@ async def get_pollution(year: int = None, month: int = None, day: int = None, ho
     if hour is None:
         time = date(year, month, day)
         type = 0
+        id = time_model.judge_time_exist(0, time)
+        if id is None:
+            return {'data': None, 'message': '暂无该天数据，您可尝试获取', 'code': 1}
     else:
         time = datetime(2013, 1, day, hour, 0, 0)
         type = 1
+        id = time_model.judge_time_exist(0, time)
+        if id is None:
+            return {'data': None, 'message': '暂无该天数据，您可尝试获取', 'code': 1}
     pollutions = pollution_model.get_pollution_by_date(time, type)
     res = []
     for pollution in pollutions:
@@ -151,6 +168,7 @@ async def get_weather_map(year: int, month: int, day: int):
         res.append(pollution._asdict())
     return {'data': res, 'message': '结果如下', 'code': 0}
 
+
 @datas_router.get("/all_AQI")
 @data_standard_response
 async def get_all_AQI(city: str):
@@ -167,3 +185,93 @@ async def get_all_AQI(city: str):
             sum += 1
         res[i] = temp
     return {'data': res, 'message': '结果如下', 'code': 0}
+
+
+@datas_router.post("/spider_day_data")
+@data_standard_response
+async def spider_data(date_data: date_interface):
+    dates = "{:04d}{:02d}".format(date_data.year, date_data.month)
+    citys = city_model.get_all_city()
+    city_names = [name[0].rstrip("市") for name in citys]
+    base_url = 'https://www.aqistudy.cn/historydata/daydata.php?city='
+    # 声明浏览器对象
+    option = webdriver.ChromeOptions()
+    option.add_argument("start-maximized")
+    option.add_argument("--disable-blink-features=AutomationControlled")
+    option.add_experimental_option("excludeSwitches", ["enable-automation"])
+    option.add_experimental_option("useAutomationExtension", False)
+    browser = webdriver.Chrome(options=option)
+    browser.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        'source': '''Object.defineProperty(navigator, 'webdriver', {
+            get: () =>false'''
+    })
+    Date = date(date_data.year, date_data.month, date_data.day)
+    time_id = time_model.add_time(time_interface(Dates=Date))
+    for ct in range(len(city_names)):
+        url = base_url + city_names[ct] + '&month=' + dates
+        start_time = time.time()
+        df = spider(url, Date, browser, start_time)
+        if df is not None:
+            time.sleep(1.5)
+            city_id = city_model.get_city_id_by_city_name(city_names[ct] + '市')[0]
+            pollution = pollution_interface(city_id=city_id, time_id=time_id,
+                                            AQI=df['AQI'],
+                                            PM2_5=df['PM2.5'], PM10=df['PM10'],
+                                            SO2=df['SO2'], NO2=df['NO2'],
+                                            CO=df['CO'], O3=df['O3_8h'],
+                                            main_pollution=1)
+            print(pollution)
+            # pollution_model.add_data(pollution)
+    browser.close()
+
+
+@datas_router.post("/add_events")
+@data_standard_response
+async def add_events(file: UploadFile = File(...)):
+    contents = await file.read()
+    md5_hash = md5()
+    md5_hash.update(contents)
+    md5_hexdigest = md5_hash.hexdigest()
+    sha256_hash = sha256()
+    sha256_hash.update(contents)
+    sha256_hexdigest = sha256_hash.hexdigest()
+    exist_file = file_model.get_file_by_hash(hash_interface(size=file.size,hash_md5=md5_hexdigest,hash_sha256=sha256_hexdigest))
+    if exist_file is not None:
+        return {'message': '文件已存在', 'data': False, 'code': 1}
+    folder = md5_hexdigest[:8] + '/' + sha256_hexdigest[-8:] + '/'  # 先创建路由
+    upload_file.delay(folder, file.filename, contents)
+    add_file = file_interface(size=file.size,
+                              hash_md5=md5_hexdigest,
+                              hash_sha256=sha256_hexdigest,
+                              name=file.filename,
+                              type=file.content_type)
+    id = file_model.add_file(add_file)
+    contents = contents.decode("utf-8")
+    df = pd.read_csv(io.StringIO(contents))
+    for index, row in df.iterrows():
+        # 在这里可以访问每一行的数据
+        # 可以使用row['列名']来获取每一列的值
+        city = row['城市']
+        start_date = datetime.strptime(row['起始时间'], "%Y/%m/%d").date()
+        end_date = datetime.strptime(row['终止时间'], "%Y/%m/%d").date()
+        event_description = row['事件描述']
+        city_id = city_model.get_city_id_by_city_name(city)
+        if city_id is not None:
+            begin_time_id = time_model.get_time_id_by_time(0,start_date)[0]
+            end_time_id = time_model.get_time_id_by_time(0, end_date)[0]
+            event = event_interface(city_id = city_id[0],begin_time_id=begin_time_id,end_time_id= end_time_id,events=event_description)
+            event_model.add_event(event)
+    return {'message': '添加成功', 'data': True, 'code': 0}
+
+
+@datas_router.get("/events")
+@data_standard_response
+async def get_events(city: str, year: int = None, month: int = None, day: int = None):
+    time = date(year, month, day)
+    temp_events = event_model.get_event_by_city_time(city,time)
+    events = None
+    if temp_events:
+        events = []
+        for event in temp_events:
+            events.append(event[0])
+    return {'message': '结果如下', 'data': events, 'code': 0}

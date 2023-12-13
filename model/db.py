@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base
 from const import SQLALCHEMY_DATABASE_URL
 import redis
 from minio import Minio, S3Error
-'''
+
 minio_client = Minio(
     "119.3.179.194:9000",  # 更新为MinIO服务器的地址和端口
     access_key="minioadmin",  # 你的MinIO访问密钥
@@ -17,7 +17,7 @@ try:
         minio_client.make_bucket('main')
 except S3Error as e:
     print(f'Error: {e}')
-
+'''
 pool1 = redis.ConnectionPool(host='127.0.0.1', port=6379, db=1, encoding='UTF-8')
 pool2 = redis.ConnectionPool(host='127.0.0.1', port=6379, db=2, encoding='UTF-8')
 pool3 = redis.ConnectionPool(host='127.0.0.1', port=6379, db=3, encoding='UTF-8')

@@ -1,12 +1,14 @@
 import random
-from datetime import datetime
+from datetime import datetime, date
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import func, extract, Null, null
+from sqlalchemy import func, extract, between
+from sqlalchemy.orm import aliased
 
-from model.data import City, Time, Pollution, Information
+from model.data import City, Time, Pollution, Information, File, Event
 from model.db import dbSession
-from type.data import city_interface, time_interface, pollution_interface, information_interface
+from type.data import city_interface, time_interface, pollution_interface, information_interface, file_interface, \
+    event_interface, hash_interface
 
 
 class PollutionModel(dbSession):
@@ -87,6 +89,7 @@ class PollutionModel(dbSession):
             session.commit()
             return aqis
 
+
 class InformationModel(dbSession):
     def add_data(self, obj: information_interface):
         obj_dict = jsonable_encoder(obj)
@@ -126,6 +129,12 @@ class CityModel(dbSession):
             session.commit()
             return id
 
+    def get_all_city(self):
+        with self.get_db() as session:
+            names = session.query(City.name).filter().all()
+            session.commit()
+            return names
+
 
 class TimeModel(dbSession):
     def add_time(self, obj: time_interface):
@@ -136,3 +145,66 @@ class TimeModel(dbSession):
             session.flush()
             session.commit()
             return obj_add.id
+
+    def judge_time_exist(self, type: int, times):
+        with self.get_db() as session:
+            if type == 0:
+                id = session.query(Time.id).filter(Time.Dates == times).first()
+            else:
+                id = session.query(Time.id).filter(Time.Datetimes == times).first()
+            session.commit()
+            return id
+
+    def get_time_id_by_time(self, type, TIME):
+        with self.get_db() as session:
+            if type == 0:
+                id = session.query(Time.id).filter(Time.Dates == TIME).first()
+            else:
+                id = session.query(Time.id).filter(Time.Datetimes == TIME).first()
+            session.commit()
+            return id
+
+
+class FileModel(dbSession):
+    def add_file(self, obj: file_interface):  # 用户上传文件(在file表中添加一个记录)
+        obj_dict = jsonable_encoder(obj)
+        obj_add = File(**obj_dict)
+        with self.get_db() as session:
+            session.add(obj_add)
+            session.flush()
+            session.commit()
+            return obj_add.id
+
+    def get_file_by_hash(self, obj: hash_interface):  # 根据size与两个hash查询file的id
+        with self.get_db() as session:
+            id = session.query(File.id).filter(
+                File.size == obj.size,
+                File.hash_md5 == obj.hash_md5,
+                File.hash_sha256 == obj.hash_sha256).first()
+            session.commit()
+            return id
+
+
+class EventModel(dbSession):
+    def add_event(self, obj: event_interface):
+        obj_dict = jsonable_encoder(obj)
+        obj_add = Event(**obj_dict)
+        with self.get_db() as session:
+            session.add(obj_add)
+            session.flush()
+            session.commit()
+            return obj_add.id
+
+    def get_event_by_city_time(self, city: str, times):
+        with self.get_db() as session:
+            time_alias1 = aliased(Time, name="time_alias1")
+            time_alias2 = aliased(Time, name="time_alias2")
+            events = session.query(Event.events).join(City, City.id == Event.city_id).join(time_alias1,
+                                                                                           time_alias1.id == Event.begin_time_id).join(
+                time_alias2, time_alias2.id == Event.end_time_id).filter(
+                City.name == city,
+                between(times, time_alias1.Dates, time_alias2.Dates)
+            ).all()
+
+            session.commit()
+            return events

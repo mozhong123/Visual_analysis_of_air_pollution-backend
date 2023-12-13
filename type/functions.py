@@ -1,11 +1,19 @@
+import copy
+from datetime import date
+
 import requests
 import pandas as pd
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+pd.set_option('display.width', None)
 import numpy as np
 import time
 import random
 import re
 import os
 import json
+
+from bs4 import BeautifulSoup
 
 
 # 通过经纬度获得城市名和城市地址（省市区）
@@ -141,3 +149,69 @@ def evaluate_air_quality(aqi):
         return "重度污染"
     else:
         return "严重污染"
+
+
+
+def get_date(url):
+    headers = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Cookie': 'aqi_query_session=BAh7B0kiD3Nlc3Npb25faWQGOgZFRkkiJTZiZjQ1MWI5NjUzZWNiZDA0MzIzMzllMWUxMWRjYmZiBjsAVEkiEF9jc3JmX3Rva2VuBjsARkkiMUxuYkg4V0tMV2xMeXFBb2NFNDViMHRWTklPRE5lMUxEQ01OQmd2VXFELzg9BjsARg%3D%3D--a08f667c6f9b040442ae1daab0fc5c45641db6bf; __utma=162682429.909376057.1565782011.1565782011.1565782011.1; __utmc=162682429; __utmz=162682429.1565782011.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1; __utmb=162682429.1.10.1565782011',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+    }
+    response = requests.get(url, headers=headers)
+    dates = []
+    try:
+        if response.status_code == 200:
+            response = response.text
+            soup = BeautifulSoup(response, 'lxml')
+            dates_ = soup.find_all('li')
+            for i in dates_:
+                if i.a:  # 去除空值
+                    li = i.a.text  # 提取li标签下的a标签
+                    date = re.findall('[0-9]*', li)  # ['2019', '', '12', '', '']
+                    year = date[0]
+                    month = date[2]
+                    if month and year:  # 去除不符合要求的内容
+                        date_new = '-'.join([year, month])
+                        dates.append(date_new)
+            return dates
+    except:
+        print('数据获取失败！')
+
+
+
+def spider(url,Date,browser,times):
+    year = Date.year
+    month = Date.month
+    tempDate = date(year, month, 1)
+    browser.get(url)
+    df = pd.read_html(browser.page_source, header=0)[0]  # 返回第一个Dataframe
+    time.sleep(1.5)
+    if not df.empty:
+        columnindex = 0
+        for index, row in df.head(1).iterrows():
+            for column, value in row.items():
+                if value == tempDate.strftime(
+                        "%Y-%m-%d"):
+                    columnindex = df.columns.get_loc(column)
+                    break
+        num_columns = len(df.columns)
+        # 循环移位操作
+        for i in range(columnindex):
+            temp = copy.deepcopy(df.iloc[:, 0])
+            df.iloc[:, 0:num_columns - 1] = df.iloc[:, 1:num_columns].values
+            # 将最左边的列移动到最右边
+            df.iloc[:, -1] = temp
+        df = df[df['日期'] == Date.strftime("%Y-%m-%d")]
+        return df[['日期','AQI','NO2','PM10','PM2.5','SO2','CO','O3_8h','质量等级']]
+    else:
+        end_time = time.time()
+        execution_time = end_time - times
+        if execution_time >= 5:
+            return None
+        else:
+            return spider(url,Date,browser,times)  # 防止网络还没加载出来就爬取下一个url

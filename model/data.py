@@ -41,7 +41,7 @@ class Pollution(Base):
     O3 = Column(Float, nullable=False, comment='O3')
 
 
-class Information(Base):  # 2013年的信息表
+class Information(Base):
     __tablename__ = 'information'
     id = Column(Integer, primary_key=True, autoincrement=True, comment='主键')  # 主键
     pollution_id = Column(Integer, ForeignKey('pollution.id'), comment='外键')
@@ -50,3 +50,26 @@ class Information(Base):  # 2013年的信息表
     TEMP = Column(Float, nullable=False, comment='温度')
     RH = Column(Float, nullable=False, comment='相对湿度')
     PSFC = Column(Float, nullable=False, comment='表面气压')
+
+
+class Event(Base):
+    __tablename__ = 'event'
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='主键')  # 主键
+    city_id = Column(Integer, ForeignKey('city.id'), nullable=False, comment='城市')  # 城市
+    begin_time_id = Column(Integer, ForeignKey('time.id'), nullable=False, comment='起始时间')
+    end_time_id = Column(Integer, ForeignKey('time.id'), nullable=False, comment='终止时间')
+    events = Column(VARCHAR(512), nullable=False)
+
+
+class File(Base):  # 文件表
+    __tablename__ = 'file'
+    __table_args__ = (
+        Index('ix_file_has_delete_size_hash',  "size", "hash_md5", "hash_sha256"),  # 非唯一的索引
+    )
+    id = Column(Integer, primary_key=True)  # 文件 id
+    size = Column(Integer, nullable=False)  # 文件大小（字节）
+    hash_md5 = Column(VARCHAR(128), nullable=False)  # 文件哈希md5
+    hash_sha256 = Column(VARCHAR(128), nullable=False)  # 文件哈希sha256
+    name = Column(VARCHAR(128), nullable=True)  # 文件名
+    type = Column(VARCHAR(128), nullable=True)  # 文件类型
+    create_dt = Column(DateTime,default=func.now(), nullable=False)  # 文件创建时间
