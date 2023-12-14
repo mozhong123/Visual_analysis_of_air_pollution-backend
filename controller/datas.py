@@ -1,5 +1,6 @@
 import io
 import os
+import random
 import re
 import time
 from datetime import datetime, date
@@ -8,7 +9,7 @@ from hashlib import md5, sha256
 import pandas as pd
 from fastapi import Request, UploadFile, File
 from selenium import webdriver
-
+from Celery.spider_data import spider_data
 from Celery.upload_file import upload_file
 from type.functions import evaluate_air_quality, spider
 from fastapi import APIRouter
@@ -26,6 +27,7 @@ pollution_model = PollutionModel()
 information_model = InformationModel()
 file_model = FileModel()
 event_model = EventModel()
+
 
 @datas_router.post("/add_datas")
 @data_standard_response
@@ -189,40 +191,15 @@ async def get_all_AQI(city: str):
 
 @datas_router.post("/spider_day_data")
 @data_standard_response
-async def spider_data(date_data: date_interface):
+async def spider_datas(date_data: date_interface):
     dates = "{:04d}{:02d}".format(date_data.year, date_data.month)
-    citys = city_model.get_all_city()
-    city_names = [name[0].rstrip("市") for name in citys]
-    base_url = 'https://www.aqistudy.cn/historydata/daydata.php?city='
-    # 声明浏览器对象
-    option = webdriver.ChromeOptions()
-    option.add_argument("start-maximized")
-    option.add_argument("--disable-blink-features=AutomationControlled")
-    option.add_experimental_option("excludeSwitches", ["enable-automation"])
-    option.add_experimental_option("useAutomationExtension", False)
-    browser = webdriver.Chrome(options=option)
-    browser.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        'source': '''Object.defineProperty(navigator, 'webdriver', {
-            get: () =>false'''
-    })
     Date = date(date_data.year, date_data.month, date_data.day)
+    id = time_model.judge_time_exist(0,Date)
+    if id is not None:
+        return {'data': None, 'message': '已有该天数据，您无需爬取', 'code': 1}
     time_id = time_model.add_time(time_interface(Dates=Date))
-    for ct in range(len(city_names)):
-        url = base_url + city_names[ct] + '&month=' + dates
-        start_time = time.time()
-        df = spider(url, Date, browser, start_time)
-        if df is not None:
-            time.sleep(1.5)
-            city_id = city_model.get_city_id_by_city_name(city_names[ct] + '市')[0]
-            pollution = pollution_interface(city_id=city_id, time_id=time_id,
-                                            AQI=df['AQI'],
-                                            PM2_5=df['PM2.5'], PM10=df['PM10'],
-                                            SO2=df['SO2'], NO2=df['NO2'],
-                                            CO=df['CO'], O3=df['O3_8h'],
-                                            main_pollution=1)
-            print(pollution)
-            # pollution_model.add_data(pollution)
-    browser.close()
+    spider_data.delay(Date, time_id, dates)
+    return {'message': '爬取成功，请稍后查看', 'data': True, 'code': 0}
 
 
 @datas_router.post("/add_events")
@@ -235,7 +212,8 @@ async def add_events(file: UploadFile = File(...)):
     sha256_hash = sha256()
     sha256_hash.update(contents)
     sha256_hexdigest = sha256_hash.hexdigest()
-    exist_file = file_model.get_file_by_hash(hash_interface(size=file.size,hash_md5=md5_hexdigest,hash_sha256=sha256_hexdigest))
+    exist_file = file_model.get_file_by_hash(
+        hash_interface(size=file.size, hash_md5=md5_hexdigest, hash_sha256=sha256_hexdigest))
     if exist_file is not None:
         return {'message': '文件已存在', 'data': False, 'code': 1}
     folder = md5_hexdigest[:8] + '/' + sha256_hexdigest[-8:] + '/'  # 先创建路由
@@ -257,9 +235,10 @@ async def add_events(file: UploadFile = File(...)):
         event_description = row['事件描述']
         city_id = city_model.get_city_id_by_city_name(city)
         if city_id is not None:
-            begin_time_id = time_model.get_time_id_by_time(0,start_date)[0]
+            begin_time_id = time_model.get_time_id_by_time(0, start_date)[0]
             end_time_id = time_model.get_time_id_by_time(0, end_date)[0]
-            event = event_interface(city_id = city_id[0],begin_time_id=begin_time_id,end_time_id= end_time_id,events=event_description)
+            event = event_interface(city_id=city_id[0], begin_time_id=begin_time_id, end_time_id=end_time_id,
+                                    events=event_description)
             event_model.add_event(event)
     return {'message': '添加成功', 'data': True, 'code': 0}
 
@@ -268,7 +247,7 @@ async def add_events(file: UploadFile = File(...)):
 @data_standard_response
 async def get_events(city: str, year: int = None, month: int = None, day: int = None):
     time = date(year, month, day)
-    temp_events = event_model.get_event_by_city_time(city,time)
+    temp_events = event_model.get_event_by_city_time(city, time)
     events = None
     if temp_events:
         events = []

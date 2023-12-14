@@ -131,7 +131,7 @@ class CityModel(dbSession):
 
     def get_all_city(self):
         with self.get_db() as session:
-            names = session.query(City.name).filter().all()
+            names = session.query(City.name).order_by(City.id).filter().all()
             session.commit()
             return names
 

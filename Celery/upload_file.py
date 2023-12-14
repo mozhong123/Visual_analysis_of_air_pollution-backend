@@ -2,11 +2,7 @@ import io
 from celery import Celery
 from fastapi import HTTPException
 from minio import S3Error
-
 from model.db import minio_client
-
-# from model.db import minio_client
-# from const import development_ip,redis_password
 broker = f'redis://:@119.3.179.194:6379/13'  # 消息队列
 backend = f'redis://:@119.3.179.194:6379/14'  # 存储结果
 upload_file_app = Celery(
