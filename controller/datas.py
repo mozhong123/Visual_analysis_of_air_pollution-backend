@@ -11,7 +11,7 @@ from fastapi import Request, UploadFile, File
 from selenium import webdriver
 from Celery.spider_data import spider_data
 from Celery.upload_file import upload_file
-from model.db import event_db
+from model.db import event_db, rank_db
 from type.functions import evaluate_air_quality, spider
 from fastapi import APIRouter
 from utils.response import data_standard_response
@@ -195,7 +195,7 @@ async def get_all_AQI(city: str):
 async def spider_datas(date_data: date_interface):
     dates = "{:04d}{:02d}".format(date_data.year, date_data.month)
     Date = date(date_data.year, date_data.month, date_data.day)
-    id = time_model.judge_time_exist(0,Date)
+    id = time_model.judge_time_exist(0, Date)
     if id is not None:
         return {'data': None, 'message': '已有该天数据，您无需爬取', 'code': 1}
     time_id = time_model.add_time(time_interface(Dates=Date))
@@ -251,7 +251,7 @@ async def get_events(city: str, year: int = None, month: int = None, day: int = 
     func = city + time.strftime("%Y-%m-%d")
     redis_event = event_db.get(func)  # 有效session中没有
     if redis_event is not None:
-        events =  json.loads(redis_event.decode("utf-8").replace("'", "\""))# 登陆了就返回用户登录的session
+        events = json.loads(redis_event.decode("utf-8").replace("'", "\""))  # 登陆了就返回用户登录的session
     else:
         temp_events = event_model.get_event_by_city_time(city, time)
         events = None
@@ -259,5 +259,26 @@ async def get_events(city: str, year: int = None, month: int = None, day: int = 
             events = []
             for event in temp_events:
                 events.append(event[0])
-            event_db.set(func,str(events),ex=1270000)
+            event_db.set(func, str(events), ex=1270000)
     return {'message': '结果如下', 'data': events, 'code': 0}
+
+
+@datas_router.get("/province_rank")
+@data_standard_response
+async def get_province_rank(year: int = None, month: int = None, day: int = None):
+    time = date(year, month, day)
+    type = 0
+    id = time_model.judge_time_exist(0, time)
+    if id is None:
+        return {'data': None, 'message': '暂无该天数据，您可尝试获取', 'code': 1}
+    redis_rank = rank_db.get(time.strftime("%Y-%m-%d"))  # 有效session中没有
+    if redis_rank is not None:
+        res = json.loads(redis_rank.decode("utf-8").replace("'", "\""))
+    else:
+        pollutions = pollution_model.get_rank_by_date(time, type)
+        res = []
+        for pollution in pollutions:
+            pollution = pollution._asdict()
+            res.append(pollution)
+        rank_db.set(time.strftime("%Y-%m-%d"), str(res), ex=1270000)
+    return {'data': res, 'message': '结果如下', 'code': 0}

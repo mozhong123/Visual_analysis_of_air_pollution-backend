@@ -2,7 +2,7 @@ import random
 from datetime import datetime, date
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import func, extract, between
+from sqlalchemy import func, extract, between, desc, asc
 from sqlalchemy.orm import aliased
 
 from model.data import City, Time, Pollution, Information, File, Event
@@ -52,6 +52,22 @@ class PollutionModel(dbSession):
                 pollutions = query.filter(
                     Time.Datetimes == time
                 ).all()
+            session.commit()
+            return pollutions
+
+    def get_rank_by_date(self, time, type):
+        with self.get_db() as session:
+            query = session.query(Pollution.AQI, City.name
+                                  ).outerjoin(City, City.id == Pollution.city_id).outerjoin(Time,
+                                                                                            Time.id == Pollution.time_id)
+            if type == 0:
+                pollutions = query.filter(
+                    Time.Dates == time
+                ).order_by(asc(Pollution.AQI)).limit(10).all()
+            else:
+                pollutions = query.filter(
+                    Time.Datetimes == time
+                ).order_by(asc(Pollution.AQI)).limit(10).all()
             session.commit()
             return pollutions
 
