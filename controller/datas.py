@@ -11,6 +11,7 @@ from fastapi import Request, UploadFile, File
 from selenium import webdriver
 from Celery.spider_data import spider_data
 from Celery.upload_file import upload_file
+from model.db import event_db
 from type.functions import evaluate_air_quality, spider
 from fastapi import APIRouter
 from utils.response import data_standard_response
@@ -247,10 +248,16 @@ async def add_events(file: UploadFile = File(...)):
 @data_standard_response
 async def get_events(city: str, year: int = None, month: int = None, day: int = None):
     time = date(year, month, day)
-    temp_events = event_model.get_event_by_city_time(city, time)
-    events = None
-    if temp_events:
-        events = []
-        for event in temp_events:
-            events.append(event[0])
+    func = city + time.strftime("%Y-%m-%d")
+    redis_event = event_db.get(func)  # 有效session中没有
+    if redis_event is not None:
+        events =  json.loads(redis_event.decode("utf-8").replace("'", "\""))# 登陆了就返回用户登录的session
+    else:
+        temp_events = event_model.get_event_by_city_time(city, time)
+        events = None
+        if temp_events:
+            events = []
+            for event in temp_events:
+                events.append(event[0])
+            event_db.set(func,str(events),ex=1270000)
     return {'message': '结果如下', 'data': events, 'code': 0}
