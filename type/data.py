@@ -56,6 +56,11 @@ class event_interface(BaseModel):
     end_time_id: int
     events: str
 
+class events_interface(BaseModel):
+    city: str
+    begin_time: date
+    end_time: date
+    events: str
 
 class hash_interface(BaseModel):
     size: int

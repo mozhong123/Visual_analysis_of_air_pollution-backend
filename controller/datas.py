@@ -16,7 +16,7 @@ from type.functions import evaluate_air_quality, spider
 from fastapi import APIRouter
 from utils.response import data_standard_response
 from type.data import pollution_interface, information_interface, city_interface, time_interface, date_interface, \
-    file_interface, event_interface, hash_interface
+    file_interface, event_interface, hash_interface, events_interface
 from service.data import PollutionModel, InformationModel, CityModel, TimeModel, FileModel, EventModel
 import json
 
@@ -203,7 +203,7 @@ async def spider_datas(date_data: date_interface):
     return {'message': '爬取成功，请稍后查看', 'data': True, 'code': 0}
 
 
-@datas_router.post("/add_events")
+@datas_router.post("/add_events_file")
 @data_standard_response
 async def add_events(file: UploadFile = File(...)):
     contents = await file.read()
@@ -241,6 +241,19 @@ async def add_events(file: UploadFile = File(...)):
             event = event_interface(city_id=city_id[0], begin_time_id=begin_time_id, end_time_id=end_time_id,
                                     events=event_description)
             event_model.add_event(event)
+    return {'message': '添加成功', 'data': True, 'code': 0}
+
+
+@datas_router.post("/add_events")
+@data_standard_response
+async def add_events(Events:events_interface):
+    city_id = city_model.get_city_id_by_city_name(Events.city)
+    if city_id is not None:
+        begin_time_id = time_model.get_time_id_by_time(0, Events.begin_time)[0]
+        end_time_id = time_model.get_time_id_by_time(0, Events.end_time)[0]
+        event = event_interface(city_id=city_id[0], begin_time_id=begin_time_id, end_time_id=end_time_id,
+                                events=Events.events)
+        event_model.add_event(event)
     return {'message': '添加成功', 'data': True, 'code': 0}
 
 
