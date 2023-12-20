@@ -73,3 +73,12 @@ class File(Base):  # 文件表
     name = Column(VARCHAR(128), nullable=True)  # 文件名
     type = Column(VARCHAR(128), nullable=True)  # 文件类型
     create_dt = Column(DateTime,default=func.now(), nullable=False)  # 文件创建时间
+
+
+class Gpt(Base):
+    __tablename__ = 'gpt'
+    id = Column(Integer, primary_key=True)  # content id
+    ask_content = Column(VARCHAR(256), nullable=False)  # content
+    reply_content = Column(VARCHAR(1024), nullable=False)  # content
+    file_id = Column(Integer, ForeignKey('file.id'), nullable=False)
+    create_dt = Column(DateTime, default=func.now(), nullable=False)  #创建时间

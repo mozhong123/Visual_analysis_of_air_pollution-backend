@@ -7,17 +7,17 @@ from datetime import datetime, date
 from hashlib import md5, sha256
 
 import pandas as pd
-from fastapi import Request, UploadFile, File
+from fastapi import Request, UploadFile, File, Form
 from selenium import webdriver
 from Celery.spider_data import spider_data
 from Celery.upload_file import upload_file
 from model.db import event_db, rank_db
-from type.functions import evaluate_air_quality, spider
+from type.functions import evaluate_air_quality, spider, send2gpt, voice2text, get_files
 from fastapi import APIRouter
 from utils.response import data_standard_response
 from type.data import pollution_interface, information_interface, city_interface, time_interface, date_interface, \
-    file_interface, event_interface, hash_interface, events_interface
-from service.data import PollutionModel, InformationModel, CityModel, TimeModel, FileModel, EventModel
+    file_interface, event_interface, hash_interface, events_interface, gpt_interface, gpt
+from service.data import PollutionModel, InformationModel, CityModel, TimeModel, FileModel, EventModel, GptModel
 import json
 
 datas_router = APIRouter()
@@ -28,6 +28,7 @@ pollution_model = PollutionModel()
 information_model = InformationModel()
 file_model = FileModel()
 event_model = EventModel()
+gpt_model = GptModel()
 
 
 @datas_router.post("/add_datas")
@@ -246,13 +247,13 @@ async def add_events(file: UploadFile = File(...)):
 
 @datas_router.post("/add_events")
 @data_standard_response
-async def add_events(Events:events_interface):
-    city_id = city_model.get_city_id_by_city_name(Events.city)
+async def add_events(events: events_interface):
+    city_id = city_model.get_city_id_by_city_name(events.city)
     if city_id is not None:
-        begin_time_id = time_model.get_time_id_by_time(0, Events.begin_time)[0]
-        end_time_id = time_model.get_time_id_by_time(0, Events.end_time)[0]
+        begin_time_id = time_model.get_time_id_by_time(0, events.begin_time)[0]
+        end_time_id = time_model.get_time_id_by_time(0, events.end_time)[0]
         event = event_interface(city_id=city_id[0], begin_time_id=begin_time_id, end_time_id=end_time_id,
-                                events=Events.events)
+                                events=events.events)
         event_model.add_event(event)
     return {'message': '添加成功', 'data': True, 'code': 0}
 

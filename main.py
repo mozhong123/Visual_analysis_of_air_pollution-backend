@@ -5,13 +5,14 @@ from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
-from controller import datas
+from controller import datas, gpts,files
 from utils.response import standard_response
 from utils.times import getMsTime
 
 app = FastAPI()
 app.include_router(datas.datas_router, prefix="/datas")
-
+app.include_router(gpts.gpts_router, prefix="/gpts")
+app.include_router(files.files_router, prefix="/files")
 origins = [
     "*",
 ]

@@ -1,8 +1,15 @@
+import base64
 import copy
+import io
 from datetime import date
-
+import speech_recognition as sr
 import requests
 import pandas as pd
+from minio import S3Error
+from starlette.responses import JSONResponse
+
+from model.db import minio_client
+
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.width', None)
@@ -12,7 +19,7 @@ import random
 import re
 import os
 import json
-
+from const import api_key
 from bs4 import BeautifulSoup
 
 
@@ -54,7 +61,7 @@ def write_to_json(data, file_path):
     data_obj = json.loads(json_str)
     # 将字符串类型的数字转换为浮点数类型
     data_obj["data"] = [[float(num) if isinstance(num, str) and (num.replace('.', '', 1).isdigit() or (
-                num.startswith('-') and num[1:].replace('.', '', 1).isdigit())) else num for num in sublist] for sublist
+            num.startswith('-') and num[1:].replace('.', '', 1).isdigit())) else num for num in sublist] for sublist
                         in data_obj["data"]]
     json_data = json.dumps(data_obj, ensure_ascii=False)
     with open(file_path, 'w', encoding='utf-8') as file:
@@ -151,7 +158,6 @@ def evaluate_air_quality(aqi):
         return "严重污染"
 
 
-
 def get_date(url):
     headers = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
@@ -183,8 +189,7 @@ def get_date(url):
         print('数据获取失败！')
 
 
-
-def spider(url,Date,browser,times):
+def spider(url, Date, browser, times):
     year = Date.year
     month = Date.month
     tempDate = date(year, month, 1)
@@ -207,11 +212,67 @@ def spider(url,Date,browser,times):
             # 将最左边的列移动到最右边
             df.iloc[:, -1] = temp
         df = df[df['日期'] == Date.strftime("%Y-%m-%d")]
-        return df[['日期','AQI','NO2','PM10','PM2.5','SO2','CO','O3_8h','质量等级']]
+        return df[['日期', 'AQI', 'NO2', 'PM10', 'PM2.5', 'SO2', 'CO', 'O3_8h', '质量等级']]
     else:
         end_time = time.time()
         execution_time = end_time - times
         if execution_time >= 5:
             return None
         else:
-            return spider(url,Date,browser,times)  # 防止网络还没加载出来就爬取下一个url
+            return spider(url, Date, browser, times)  # 防止网络还没加载出来就爬取下一个url
+
+
+def voice2text(file_bytes):
+    r = sr.Recognizer()
+    with sr.AudioFile(io.BytesIO(file_bytes)) as source:
+        audio = r.record(source)
+    query = '请帮我具体分析一下这张图'
+    try:
+        query = r.recognize_google(audio, language='zh-CN')
+    except Exception as e:
+        return query
+    return query
+
+
+def send2gpt(text, image_file_content):
+    base64_image = base64.b64encode(image_file_content).decode('utf-8')
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4-vision-preview",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": text
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 500
+    }
+    response = requests.post("https://oneapi.xty.app/v1/chat/completions", headers=headers, json=payload)
+    return response.json()['choices'][0]['message']['content']
+
+
+def get_files(object_key,type):  # 根据桶名称与文件名从Minio上下载文件
+    try:
+        object_data = minio_client.get_object('main', object_key)
+        content = object_data.read()
+        if type == 0:
+            return content
+        else:
+            return io.BytesIO(content)
+    except S3Error as e:
+        return JSONResponse(content={'message': e, 'code': 3, 'data': False})
