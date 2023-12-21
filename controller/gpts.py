@@ -1,7 +1,9 @@
+import json
 from hashlib import md5, sha256
 from fastapi import APIRouter
 from fastapi import UploadFile, File, Form
 from Celery.upload_file import upload_file
+from model.db import gpt_db
 from service.data import PollutionModel, InformationModel, CityModel, TimeModel, FileModel, EventModel, GptModel
 from type.data import file_interface, hash_interface, gpt_interface
 from type.functions import send2gpt, voice2text, get_files
@@ -30,8 +32,8 @@ async def ask_gpt_by_content(gpt_ask: str = Form(...), file: UploadFile = File(.
     sha256_hexdigest = sha256_hash.hexdigest()
     exist_file = file_model.get_file_by_hash(
         hash_interface(size=file.size, hash_md5=md5_hexdigest, hash_sha256=sha256_hexdigest))
-    if exist_file is not None:
-        return {'message': '文件已存在', 'data': False, 'code': 1}
+    # if exist_file is not None:
+    #     return {'message': '文件已存在', 'data': False, 'code': 1}
     folder = md5_hexdigest[:8] + '/' + sha256_hexdigest[-8:] + '/'  # 先创建路由
     upload_file.delay(folder, file.filename, contents)
     add_file = file_interface(size=file.size,
@@ -43,7 +45,7 @@ async def ask_gpt_by_content(gpt_ask: str = Form(...), file: UploadFile = File(.
     reply_content = send2gpt(gpt_ask, contents)
     gpt_end = gpt_interface(ask_content=gpt_ask, reply_content=reply_content, file_id=id)
     gpt_model.add_content(gpt_end)
-    return {'message': '添加成功', 'data': {'reply_content':reply_content}, 'code': 0}
+    return {'message': '结果如下', 'data': {'reply_content':reply_content}, 'code': 0}
 
 
 @gpts_router.post("/ask_gpt_by_voice")
@@ -59,8 +61,8 @@ async def ask_gpt_by_voice(voice: UploadFile = File(...), file: UploadFile = Fil
     sha256_hexdigest = sha256_hash.hexdigest()
     exist_file = file_model.get_file_by_hash(
         hash_interface(size=file.size, hash_md5=md5_hexdigest, hash_sha256=sha256_hexdigest))
-    if exist_file is not None:
-        return {'message': '文件已存在', 'data': False, 'code': 1}
+    # if exist_file is not None:
+    #     return {'message': '文件已存在', 'data': False, 'code': 1}
     folder = md5_hexdigest[:8] + '/' + sha256_hexdigest[-8:] + '/'  # 先创建路由
     upload_file.delay(folder, file.filename, contents)
     add_file = file_interface(size=file.size,
@@ -73,7 +75,7 @@ async def ask_gpt_by_voice(voice: UploadFile = File(...), file: UploadFile = Fil
     reply_content = send2gpt(ask_content,contents)
     gpt_end = gpt_interface(ask_content=ask_content, reply_content=reply_content, file_id=id)
     gpt_model.add_content(gpt_end)
-    return {'message': '添加成功', 'data': {'reply_content':reply_content}, 'code': 0}
+    return {'message': '结果如下', 'data': {'reply_content':reply_content}, 'code': 0}
 
 
 
