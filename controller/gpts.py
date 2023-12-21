@@ -83,5 +83,6 @@ async def get_gpt_content():
     all_gpts = gpt_model.get_content()
     res = []
     for gpt_information in all_gpts:
-        res.append({'ask_content':gpt_information.ask_content,'reply_content':gpt_information.reply_content,'url':'http://127.0.0.1:8000/files/download/'+str(gpt_information.file_id)})
+        res.append({'ask_content':gpt_information.ask_content,'reply_content':gpt_information.reply_content,'url':'http://127.0.0.1:8000/files/download/'+str(gpt_information.file_id),'create_dt':gpt_information.create_dt.strftime(
+                "%Y-%m-%d %H:%M:%S")})
     return {'data': res, 'message': '结果如下', 'code': 0}
