@@ -43,7 +43,7 @@ async def ask_gpt_by_content(gpt_ask: str = Form(...), file: UploadFile = File(.
     reply_content = send2gpt(gpt_ask, contents)
     gpt_end = gpt_interface(ask_content=gpt_ask, reply_content=reply_content, file_id=id)
     gpt_model.add_content(gpt_end)
-    return {'message': '添加成功', 'data': True, 'code': 0}
+    return {'message': '添加成功', 'data': {'reply_content':reply_content}, 'code': 0}
 
 
 @gpts_router.post("/ask_gpt_by_voice")
@@ -73,7 +73,7 @@ async def ask_gpt_by_voice(voice: UploadFile = File(...), file: UploadFile = Fil
     reply_content = send2gpt(ask_content,contents)
     gpt_end = gpt_interface(ask_content=ask_content, reply_content=reply_content, file_id=id)
     gpt_model.add_content(gpt_end)
-    return {'message': '添加成功', 'data': True, 'code': 0}
+    return {'message': '添加成功', 'data': {'reply_content':reply_content}, 'code': 0}
 
 
 

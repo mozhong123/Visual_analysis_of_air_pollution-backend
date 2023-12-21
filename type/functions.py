@@ -260,7 +260,7 @@ def send2gpt(text, image_file_content):
                 ]
             }
         ],
-        "max_tokens": 500
+        "max_tokens": 600
     }
     response = requests.post("https://oneapi.xty.app/v1/chat/completions", headers=headers, json=payload)
     return response.json()['choices'][0]['message']['content']
