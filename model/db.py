@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import declarative_base
-from const import SQLALCHEMY_DATABASE_URL
+from const import SQLALCHEMY_DATABASE_URL_write,SQLALCHEMY_DATABASE_URL_read
 import redis
 from minio import Minio, S3Error
 
@@ -28,8 +28,8 @@ gpt_db = redis.Redis(connection_pool=pool3)
 Base = declarative_base()
 
 
-class dbSession:
-    def __init__(self, db_url=SQLALCHEMY_DATABASE_URL):
+class dbSessions_write:
+    def __init__(self, db_url=SQLALCHEMY_DATABASE_URL_write):
         self.engine = create_engine(db_url)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine, expire_on_commit=False)
         self.SessionThreadLocal = scoped_session(self.SessionLocal)
@@ -57,3 +57,20 @@ class dbSession:
             session.delete(record)
             session.commit()
             return record_id
+
+
+class dbSessions_read:
+    def __init__(self, db_url=SQLALCHEMY_DATABASE_URL_read):
+        self.engine = create_engine(db_url)
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine, expire_on_commit=False)
+        self.SessionThreadLocal = scoped_session(self.SessionLocal)
+
+    @contextmanager
+    def get_db_read(self):
+        if self.SessionThreadLocal is None:
+            raise Exception("Database not connected")
+        session = self.SessionThreadLocal()
+        try:
+            yield session
+        finally:
+            session.close()
