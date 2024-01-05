@@ -7,7 +7,9 @@ import requests
 import pandas as pd
 from minio import S3Error
 from starlette.responses import JSONResponse
+from openai import OpenAI
 
+client = OpenAI()
 from model.db import minio_client
 
 pd.set_option('display.max_columns', None)
@@ -223,15 +225,11 @@ def spider(url, Date, browser, times):
 
 
 def voice2text(file_bytes):
-    r = sr.Recognizer()
-    with sr.AudioFile(io.BytesIO(file_bytes)) as source:
-        audio = r.record(source)
-    query = '请帮我具体分析一下这张图'
-    try:
-        query = r.recognize_google(audio, language='zh-CN')
-    except Exception as e:
-        return query
-    return query
+    transcript = client.audio.transcriptions.create(
+        model="whisper-1",
+        file=file_bytes
+    )
+    return transcript.text
 
 
 def send2gpt(text, image_file_content):
