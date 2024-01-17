@@ -1,7 +1,10 @@
+import io
 import json
 from hashlib import md5, sha256
 from fastapi import APIRouter
 from fastapi import UploadFile, File, Form
+from pydub import AudioSegment
+
 from Celery.upload_file import upload_file
 from model.db import gpt_db
 from service.data import PollutionModel, InformationModel, CityModel, TimeModel, FileModel, EventModel, GptModel
@@ -53,6 +56,11 @@ async def ask_gpt_by_content(gpt_ask: str = Form(...), file: UploadFile = File(.
 async def ask_gpt_by_voice(voice: UploadFile = File(...), file: UploadFile = File(...)):
     contents = await file.read()
     voice_contents = await voice.read()
+    song = AudioSegment.from_file(io.BytesIO(voice_contents), format="wav")
+    one_minutes = 1 * 60 * 1000
+    first_10_minutes = song[:one_minutes]
+    first_10_minutes.export("temp.wav", format="wav")
+    voice_contents = open("temp.wav", "rb")
     md5_hash = md5()
     md5_hash.update(contents)
     md5_hexdigest = md5_hash.hexdigest()
@@ -61,8 +69,8 @@ async def ask_gpt_by_voice(voice: UploadFile = File(...), file: UploadFile = Fil
     sha256_hexdigest = sha256_hash.hexdigest()
     exist_file = file_model.get_file_by_hash(
         hash_interface(size=file.size, hash_md5=md5_hexdigest, hash_sha256=sha256_hexdigest))
-    # if exist_file is not None:
-    #     return {'message': '文件已存在', 'data': False, 'code': 1}
+    if exist_file is not None:
+        return {'message': '文件已存在', 'data': False, 'code': 1}
     folder = md5_hexdigest[:8] + '/' + sha256_hexdigest[-8:] + '/'  # 先创建路由
     upload_file.delay(folder, file.filename, contents)
     add_file = file_interface(size=file.size,
